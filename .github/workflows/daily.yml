@@ -1,0 +1,31 @@
+name: daily-job-run
+
+on:
+  schedule:
+    - cron: "0 20 * * *"   # 20:00 UTC = 7am Melbourne (AEDT). Change for your time zone.
+  workflow_dispatch:        # run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Find and score today's jobs
+        env:
+          RESUME_TEXT: ${{ secrets.RESUME_TEXT }}             # optional: keeps your resume private
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }} # optional: AI fit notes
+        run: python run.py
+      - name: Save results back to the repo
+        run: |
+          git config user.name "job-bot"
+          git config user.email "job-bot@users.noreply.github.com"
+          git add data/ reports/
+          git diff --cached --quiet || git commit -m "Daily run $(date -u +%F)"
+          git pull --rebase && git push
